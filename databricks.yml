@@ -20,9 +20,8 @@ resources:
   jobs:
     sg_traffic_data_ingestion:
       name: "SG Traffic Data Ingestion"
-      schedule:
-        quartz_cron_expression: "0 */5 * * * ?"
-        timezone_id: "Asia/Singapore"
+      continuous:
+        pause_status: UNPAUSED
       environments:
         - environment_key: default
           spec:

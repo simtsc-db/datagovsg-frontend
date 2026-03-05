@@ -1,8 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Singapore Traffic Data Ingestion Pipeline
-# MAGIC Fetches real-time traffic camera images and taxi availability from data.gov.sg,
+# MAGIC Continuously fetches real-time traffic camera images and taxi availability from data.gov.sg,
 # MAGIC writes to Lakebase (primary storage), then syncs Delta tables from Lakebase.
+# MAGIC Runs in a loop with 60-second intervals.
 
 # COMMAND ----------
 
@@ -16,6 +17,7 @@ dbutils.library.restartPython()
 
 import requests
 import json
+import time
 import psycopg2
 import psycopg2.extras
 from pyspark.sql import functions as F
@@ -37,6 +39,8 @@ LAKEBASE_DB = "sg_building"
 TRAFFIC_IMAGES_URL = "https://api.data.gov.sg/v1/transport/traffic-images"
 TAXI_AVAILABILITY_URL = "https://api.data.gov.sg/v1/transport/taxi-availability"
 
+INTERVAL_SECONDS = 60
+
 # COMMAND ----------
 
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
@@ -44,30 +48,30 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Get Lakebase Credentials
+# MAGIC ## Helper Functions
 
 # COMMAND ----------
 
-ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-api_token = ctx.apiToken().get()
-api_url = ctx.apiUrl().get()
-user_email = spark.sql("SELECT current_user()").collect()[0][0]
+def get_lakebase_connection():
+    """Get authenticated Lakebase connection."""
+    ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+    api_token = ctx.apiToken().get()
+    api_url = ctx.apiUrl().get()
+    user_email = spark.sql("SELECT current_user()").collect()[0][0]
 
-resp = requests.post(
-    f"{api_url}/api/2.0/postgres/credentials",
-    headers={"Authorization": f"Bearer {api_token}"},
-    json={"endpoint": "projects/sg-building/branches/production/endpoints/primary"},
-)
-resp.raise_for_status()
-pg_token = resp.json()["token"]
-print(f"Lakebase credential acquired for {user_email}")
+    resp = requests.post(
+        f"{api_url}/api/2.0/postgres/credentials",
+        headers={"Authorization": f"Bearer {api_token}"},
+        json={"endpoint": "projects/sg-building/branches/production/endpoints/primary"},
+    )
+    resp.raise_for_status()
+    pg_token = resp.json()["token"]
 
-# COMMAND ----------
+    return psycopg2.connect(
+        host=LAKEBASE_HOST, port=5432, dbname=LAKEBASE_DB,
+        user=user_email, password=pg_token, sslmode="require", connect_timeout=10,
+    )
 
-# MAGIC %md
-# MAGIC ## Fetch & Write to Lakebase (Primary Storage)
-
-# COMMAND ----------
 
 def fetch_traffic_images():
     resp = requests.get(TRAFFIC_IMAGES_URL, headers={"x-api-key": DATAGOV_API_KEY})
@@ -87,6 +91,7 @@ def fetch_traffic_images():
             })
     return cameras
 
+
 def fetch_taxi_locations():
     resp = requests.get(TAXI_AVAILABILITY_URL, headers={"x-api-key": DATAGOV_API_KEY})
     resp.raise_for_status()
@@ -103,101 +108,97 @@ def fetch_taxi_locations():
             })
     return taxis
 
-cameras = fetch_traffic_images()
-taxis = fetch_taxi_locations()
-print(f"Fetched {len(cameras)} cameras, {len(taxis)} taxis from data.gov.sg")
 
-# COMMAND ----------
+def write_to_lakebase(conn, cameras, taxis):
+    """Write data to Lakebase (primary storage)."""
+    cur = conn.cursor()
 
-# Write to Lakebase (primary storage)
-conn = psycopg2.connect(
-    host=LAKEBASE_HOST, port=5432, dbname=LAKEBASE_DB,
-    user=user_email, password=pg_token, sslmode="require", connect_timeout=10,
-)
-cur = conn.cursor()
+    cur.execute("DELETE FROM traffic_cameras")
+    for cam in cameras:
+        cur.execute("""
+            INSERT INTO traffic_cameras (camera_id, image_url, image_width, image_height, latitude, longitude, captured_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (cam["camera_id"], cam["image_url"], cam["image_width"], cam["image_height"],
+              cam["latitude"], cam["longitude"], cam["captured_at"]))
+    conn.commit()
 
-# Upsert cameras
-cur.execute("DELETE FROM traffic_cameras")
-for cam in cameras:
-    cur.execute("""
-        INSERT INTO traffic_cameras (camera_id, image_url, image_width, image_height, latitude, longitude, captured_at, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-    """, (cam["camera_id"], cam["image_url"], cam["image_width"], cam["image_height"],
-          cam["latitude"], cam["longitude"], cam["captured_at"]))
-conn.commit()
-print(f"Wrote {len(cameras)} cameras to Lakebase")
+    cur.execute("DELETE FROM taxi_locations")
+    for taxi in taxis:
+        cur.execute("""
+            INSERT INTO taxi_locations (latitude, longitude, captured_at, updated_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (taxi["latitude"], taxi["longitude"], taxi["captured_at"]))
+    conn.commit()
+    cur.close()
 
-# Upsert taxis
-cur.execute("DELETE FROM taxi_locations")
-for taxi in taxis:
-    cur.execute("""
-        INSERT INTO taxi_locations (latitude, longitude, captured_at, updated_at)
-        VALUES (%s, %s, %s, NOW())
-    """, (taxi["latitude"], taxi["longitude"], taxi["captured_at"]))
-conn.commit()
-print(f"Wrote {len(taxis)} taxis to Lakebase")
 
-# COMMAND ----------
+def sync_to_delta(conn):
+    """Sync Lakebase data to Delta tables."""
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-# MAGIC %md
-# MAGIC ## Sync Delta Tables from Lakebase
+    # Cameras
+    cur.execute("SELECT camera_id, image_url, image_width, image_height, latitude, longitude, captured_at, updated_at FROM traffic_cameras")
+    camera_rows = cur.fetchall()
+    camera_schema = StructType([
+        StructField("camera_id", StringType()), StructField("image_url", StringType()),
+        StructField("image_width", IntegerType()), StructField("image_height", IntegerType()),
+        StructField("latitude", DoubleType()), StructField("longitude", DoubleType()),
+        StructField("captured_at", StringType()), StructField("updated_at", StringType()),
+    ])
+    df = spark.createDataFrame([dict(r) for r in camera_rows], schema=camera_schema)
+    df = df.withColumn("captured_at", F.to_timestamp("captured_at")).withColumn("updated_at", F.to_timestamp("updated_at"))
+    df.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.traffic_cameras")
 
-# COMMAND ----------
+    # Taxis
+    cur.execute("SELECT id, latitude, longitude, captured_at, updated_at FROM taxi_locations")
+    taxi_rows = cur.fetchall()
+    taxi_schema = StructType([
+        StructField("id", IntegerType()), StructField("latitude", DoubleType()),
+        StructField("longitude", DoubleType()), StructField("captured_at", StringType()),
+        StructField("updated_at", StringType()),
+    ])
+    df = spark.createDataFrame([dict(r) for r in taxi_rows], schema=taxi_schema)
+    df = df.withColumn("captured_at", F.to_timestamp("captured_at")).withColumn("updated_at", F.to_timestamp("updated_at"))
+    df.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.taxi_locations")
 
-# Read back from Lakebase and write to Delta
-cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-# Sync cameras to Delta
-cur.execute("SELECT camera_id, image_url, image_width, image_height, latitude, longitude, captured_at, updated_at FROM traffic_cameras")
-camera_rows = cur.fetchall()
-
-camera_schema = StructType([
-    StructField("camera_id", StringType()),
-    StructField("image_url", StringType()),
-    StructField("image_width", IntegerType()),
-    StructField("image_height", IntegerType()),
-    StructField("latitude", DoubleType()),
-    StructField("longitude", DoubleType()),
-    StructField("captured_at", StringType()),
-    StructField("updated_at", StringType()),
-])
-df_cameras = spark.createDataFrame([dict(r) for r in camera_rows], schema=camera_schema)
-df_cameras = df_cameras.withColumn("captured_at", F.to_timestamp("captured_at"))
-df_cameras = df_cameras.withColumn("updated_at", F.to_timestamp("updated_at"))
-df_cameras.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.traffic_cameras")
-print(f"Synced {len(camera_rows)} cameras to Delta: {CATALOG}.{SCHEMA}.traffic_cameras")
-
-# COMMAND ----------
-
-# Sync taxis to Delta
-cur.execute("SELECT id, latitude, longitude, captured_at, updated_at FROM taxi_locations")
-taxi_rows = cur.fetchall()
-
-taxi_schema = StructType([
-    StructField("id", IntegerType()),
-    StructField("latitude", DoubleType()),
-    StructField("longitude", DoubleType()),
-    StructField("captured_at", StringType()),
-    StructField("updated_at", StringType()),
-])
-df_taxis = spark.createDataFrame([dict(r) for r in taxi_rows], schema=taxi_schema)
-df_taxis = df_taxis.withColumn("captured_at", F.to_timestamp("captured_at"))
-df_taxis = df_taxis.withColumn("updated_at", F.to_timestamp("updated_at"))
-df_taxis.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.taxi_locations")
-print(f"Synced {len(taxi_rows)} taxis to Delta: {CATALOG}.{SCHEMA}.taxi_locations")
-
-cur.close()
-conn.close()
+    cur.close()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Summary
+# MAGIC ## Continuous Ingestion Loop
 
 # COMMAND ----------
 
-print("=== Ingestion Complete ===")
-print(f"Traffic cameras: {len(cameras)}")
-print(f"Taxi locations: {len(taxis)}")
-print(f"Lakebase (primary): {LAKEBASE_DB}")
-print(f"Delta (synced): {CATALOG}.{SCHEMA}.traffic_cameras, {CATALOG}.{SCHEMA}.taxi_locations")
+iteration = 0
+while True:
+    iteration += 1
+    start = time.time()
+    try:
+        # Fetch from APIs
+        cameras = fetch_traffic_images()
+        taxis = fetch_taxi_locations()
+        print(f"[{iteration}] Fetched {len(cameras)} cameras, {len(taxis)} taxis")
+
+        # Write to Lakebase
+        conn = get_lakebase_connection()
+        write_to_lakebase(conn, cameras, taxis)
+        print(f"[{iteration}] Lakebase updated")
+
+        # Sync to Delta
+        sync_to_delta(conn)
+        conn.close()
+        print(f"[{iteration}] Delta synced")
+
+        elapsed = time.time() - start
+        print(f"[{iteration}] Completed in {elapsed:.1f}s")
+
+    except Exception as e:
+        print(f"[{iteration}] ERROR: {e}")
+
+    # Sleep until next interval
+    elapsed = time.time() - start
+    sleep_time = max(0, INTERVAL_SECONDS - elapsed)
+    if sleep_time > 0:
+        print(f"[{iteration}] Sleeping {sleep_time:.0f}s until next cycle")
+        time.sleep(sleep_time)

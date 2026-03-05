@@ -49,6 +49,20 @@
             cursor: pointer; color: #888; font-size: 16px;
         }
         #cameraPopup .close-btn:hover { color: #fff; }
+
+        /* Stats overlay */
+        #statsOverlay {
+            position: absolute; bottom: 40px; right: 12px; z-index: 10;
+            background: rgba(20, 20, 30, 0.9); border-radius: 10px;
+            padding: 14px 18px; color: #fff; min-width: 200px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+        }
+        #statsOverlay h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ecfff; margin-bottom: 10px; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+        .stat-row .stat-label { color: #aaa; }
+        .stat-row .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+        .stat-row .stat-value.highlight { color: #7ecfff; font-size: 18px; }
+        .stat-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0; }
     </style>
 </head>
 <body>
@@ -78,6 +92,36 @@
         <h3 id="popupTitle"></h3>
         <img id="popupImage" src="" alt="Traffic camera image">
         <div class="meta" id="popupMeta"></div>
+    </div>
+
+    <div id="statsOverlay">
+        <h3>Live Statistics</h3>
+        <div class="stat-row">
+            <span class="stat-label">Available Taxis</span>
+            <span class="stat-value highlight" id="statTaxiCount">--</span>
+        </div>
+        <hr class="stat-divider">
+        <div class="stat-row">
+            <span class="stat-label">Active Cameras</span>
+            <span class="stat-value" id="statCameraCount">--</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Taxi Density</span>
+            <span class="stat-value" id="statDensity">--</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Coverage Area</span>
+            <span class="stat-value" id="statCoverage">~730 km&sup2;</span>
+        </div>
+        <hr class="stat-divider">
+        <div class="stat-row">
+            <span class="stat-label">Last Updated</span>
+            <span class="stat-value" id="statLastUpdated">--</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Data Source</span>
+            <span class="stat-value">data.gov.sg</span>
+        </div>
     </div>
 
     <script>
@@ -217,20 +261,19 @@
                 const data = await resp.json();
                 taxiDataSource.entities.removeAll();
 
-                // For performance, use a subset or clustering for large taxi counts
                 const taxis = data.taxis;
-                const step = taxis.length > 5000 ? Math.ceil(taxis.length / 5000) : 1;
-
-                for (let i = 0; i < taxis.length; i += step) {
+                for (let i = 0; i < taxis.length; i++) {
                     const taxi = taxis[i];
                     taxiDataSource.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(taxi.longitude, taxi.latitude, 5),
                         point: {
-                            pixelSize: 4,
+                            pixelSize: 8,
                             color: Cesium.Color.fromCssColorString('#4a90ff'),
+                            outlineColor: Cesium.Color.fromCssColorString('#1a5acc'),
+                            outlineWidth: 1,
                             heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                            scaleByDistance: new Cesium.NearFarScalar(500, 1.5, 30000, 0.3),
+                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.4),
                         },
                     });
                 }
@@ -251,6 +294,15 @@
             taxiDataSource.show = this.checked;
         });
 
+        // Update stats overlay
+        function updateStats(camCount, taxiCount) {
+            document.getElementById('statTaxiCount').textContent = taxiCount.toLocaleString();
+            document.getElementById('statCameraCount').textContent = camCount;
+            const density = (taxiCount / 730).toFixed(1);
+            document.getElementById('statDensity').textContent = `${density}/km\u00B2`;
+            document.getElementById('statLastUpdated').textContent = new Date().toLocaleTimeString('en-SG', { hour12: false });
+        }
+
         // Initial load
         async function init() {
             const statusEl = document.getElementById('status');
@@ -259,13 +311,15 @@
             statusEl.textContent = 'Loading taxis...';
             const taxiCount = await loadTaxis();
             statusEl.textContent = `Loaded ${camCount} cameras, ${taxiCount} taxis`;
+            updateStats(camCount, taxiCount);
 
-            // Auto-refresh every 60 seconds
+            // Auto-refresh every 30 seconds
             setInterval(async () => {
-                await loadCameras();
-                await loadTaxis();
+                const c = await loadCameras();
+                const t = await loadTaxis();
                 statusEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
-            }, 60000);
+                updateStats(c, t);
+            }, 30000);
         }
 
         init();
