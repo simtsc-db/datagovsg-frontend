@@ -11,24 +11,18 @@
         html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         #cesiumContainer { width: 100%; height: 100%; }
 
-        /* Control panel */
-        #controls {
-            position: absolute; top: 12px; left: 12px; z-index: 10;
+        .panel {
             background: rgba(20, 20, 30, 0.9); border-radius: 10px;
-            padding: 16px; color: #fff; min-width: 240px;
-            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
         }
+
+        /* Control panel - top left */
+        #controls { position: absolute; top: 12px; left: 12px; z-index: 10; padding: 16px; min-width: 240px; }
         #controls h2 { font-size: 13px; margin-bottom: 12px; color: #7ecfff; letter-spacing: 0.5px; }
         .toggle-group { margin-bottom: 6px; }
-        .toggle-group label {
-            display: flex; align-items: center; gap: 8px;
-            cursor: pointer; font-size: 13px; padding: 3px 0;
-        }
+        .toggle-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; padding: 3px 0; }
         .toggle-group input[type="checkbox"] { accent-color: #7ecfff; }
-        .badge {
-            display: inline-block; padding: 2px 6px; border-radius: 4px;
-            font-size: 11px; font-weight: 600; margin-left: auto;
-        }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: auto; }
         .badge-red { background: rgba(255,80,80,0.3); color: #ff5050; }
         .badge-blue { background: rgba(80,150,255,0.3); color: #5096ff; }
         .badge-green { background: rgba(80,200,120,0.3); color: #50c878; }
@@ -36,73 +30,114 @@
         .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 4px; }
         #status { font-size: 11px; color: #888; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
 
-        /* Popup */
-        #infoPopup {
-            display: none; position: absolute; z-index: 20;
-            background: rgba(20, 20, 30, 0.95); border-radius: 10px;
-            padding: 12px; color: #fff; max-width: 380px;
-            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        }
-        #infoPopup h3 { font-size: 13px; margin-bottom: 8px; }
-        #infoPopup img { width: 100%; border-radius: 6px; }
-        #infoPopup .meta { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.5; }
-        #infoPopup .close-btn {
-            position: absolute; top: 8px; right: 10px;
-            cursor: pointer; color: #888; font-size: 16px;
-        }
-        #infoPopup .close-btn:hover { color: #fff; }
-        .occupancy-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); margin-top: 6px; overflow: hidden; }
-        .occupancy-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-
-        /* Stats overlay */
-        #statsOverlay {
-            position: absolute; bottom: 40px; right: 12px; z-index: 10;
-            background: rgba(20, 20, 30, 0.9); border-radius: 10px;
-            padding: 14px 18px; color: #fff; min-width: 210px;
-            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
-        }
+        /* Stats overlay - top right */
+        #statsOverlay { position: absolute; top: 12px; right: 12px; z-index: 10; padding: 14px 18px; min-width: 210px; }
         #statsOverlay h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ecfff; margin-bottom: 10px; }
         .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
         .stat-row .stat-label { color: #aaa; }
         .stat-row .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
         .stat-row .stat-value.highlight { color: #7ecfff; font-size: 18px; }
         .stat-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 5px 0; }
+
+        /* Info popup */
+        #infoPopup {
+            display: none; position: absolute; z-index: 20;
+            padding: 12px; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        #infoPopup h3 { font-size: 13px; margin-bottom: 8px; }
+        #infoPopup img { width: 100%; border-radius: 6px; }
+        #infoPopup .meta { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.5; }
+        #infoPopup .close-btn { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #888; font-size: 16px; }
+        #infoPopup .close-btn:hover { color: #fff; }
+        .occupancy-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); margin-top: 6px; overflow: hidden; }
+        .occupancy-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+        /* Chat dialog - bottom right */
+        #chatDialog {
+            position: absolute; bottom: 12px; right: 12px; z-index: 15;
+            width: 360px; display: flex; flex-direction: column;
+            overflow: hidden; transition: height 0.3s ease;
+        }
+        #chatDialog.collapsed { height: 44px; }
+        #chatDialog.expanded { height: 420px; }
+        #chatHeader {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; cursor: pointer; flex-shrink: 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        #chatHeader h3 { font-size: 12px; color: #7ecfff; letter-spacing: 0.5px; }
+        #chatHeader .chat-toggle { color: #666; font-size: 14px; transition: transform 0.3s; }
+        #chatDialog.expanded #chatHeader .chat-toggle { transform: rotate(180deg); }
+        #chatMessages {
+            flex: 1; overflow-y: auto; padding: 10px 14px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        #chatMessages::-webkit-scrollbar { width: 4px; }
+        #chatMessages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+        .chat-msg { padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5; max-width: 90%; word-wrap: break-word; }
+        .chat-msg.user { background: rgba(126,207,255,0.15); color: #ccc; align-self: flex-end; }
+        .chat-msg.assistant { background: rgba(255,255,255,0.06); color: #ccc; align-self: flex-start; }
+        .chat-msg.system { background: none; color: #666; font-size: 11px; align-self: center; text-align: center; }
+        #chatInputWrap {
+            display: flex; gap: 8px; padding: 10px 14px; flex-shrink: 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        #chatInput {
+            flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 12px; outline: none;
+            font-family: inherit;
+        }
+        #chatInput::placeholder { color: #555; }
+        #chatInput:focus { border-color: rgba(126,207,255,0.4); }
+        #chatSend {
+            background: rgba(126,207,255,0.2); border: 1px solid rgba(126,207,255,0.3);
+            border-radius: 6px; padding: 8px 14px; color: #7ecfff; font-size: 12px;
+            cursor: pointer; font-weight: 600; white-space: nowrap;
+        }
+        #chatSend:hover { background: rgba(126,207,255,0.3); }
+        #chatSend:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div id="cesiumContainer"></div>
 
-    <div id="controls">
+    <!-- Controls - top left -->
+    <div id="controls" class="panel">
         <h2>SG PUBSEC PALANTIR CLONE</h2>
         <div class="section-label">LTA Traffic</div>
         <div class="toggle-group">
-            <label>
-                <input type="checkbox" id="toggleCameras" checked>
-                Traffic Cameras
-                <span class="badge badge-red" id="cameraCount">0</span>
-            </label>
+            <label><input type="checkbox" id="toggleCameras" checked> Traffic Cameras <span class="badge badge-red" id="cameraCount">0</span></label>
         </div>
         <div class="toggle-group">
-            <label>
-                <input type="checkbox" id="toggleTaxis" checked>
-                Taxis
-                <span class="badge badge-blue" id="taxiCount">0</span>
-            </label>
+            <label><input type="checkbox" id="toggleTaxis" checked> Taxis <span class="badge badge-blue" id="taxiCount">0</span></label>
         </div>
         <hr class="section-divider">
         <div class="section-label">HDB Housing</div>
         <div class="toggle-group">
-            <label>
-                <input type="checkbox" id="toggleCarparks" checked>
-                Carpark Occupancy
-                <span class="badge badge-green" id="carparkCount">0</span>
-            </label>
+            <label><input type="checkbox" id="toggleCarparks" checked> Carpark Occupancy <span class="badge badge-green" id="carparkCount">0</span></label>
         </div>
         <div id="status">Loading data...</div>
     </div>
 
-    <div id="infoPopup">
+    <!-- Stats - top right -->
+    <div id="statsOverlay" class="panel">
+        <h3>Live Statistics</h3>
+        <div class="stat-row">
+            <span class="stat-label">Available Taxis</span>
+            <span class="stat-value highlight" id="statTaxiCount">--</span>
+        </div>
+        <hr class="stat-divider">
+        <div class="stat-row"><span class="stat-label">Active Cameras</span><span class="stat-value" id="statCameraCount">--</span></div>
+        <div class="stat-row"><span class="stat-label">Carparks Tracked</span><span class="stat-value" id="statCarparkCount">--</span></div>
+        <div class="stat-row"><span class="stat-label">Avg Carpark Occupancy</span><span class="stat-value" id="statAvgOccupancy">--</span></div>
+        <div class="stat-row"><span class="stat-label">Taxi Density</span><span class="stat-value" id="statDensity">--</span></div>
+        <hr class="stat-divider">
+        <div class="stat-row"><span class="stat-label">Last Updated</span><span class="stat-value" id="statLastUpdated">--</span></div>
+        <div class="stat-row"><span class="stat-label">Data Source</span><span class="stat-value">data.gov.sg</span></div>
+    </div>
+
+    <!-- Info popup -->
+    <div id="infoPopup" class="panel">
         <span class="close-btn" onclick="closePopup()">&times;</span>
         <h3 id="popupTitle"></h3>
         <div id="popupImageWrap"></div>
@@ -110,37 +145,18 @@
         <div id="popupBar"></div>
     </div>
 
-    <div id="statsOverlay">
-        <h3>Live Statistics</h3>
-        <div class="stat-row">
-            <span class="stat-label">Available Taxis</span>
-            <span class="stat-value highlight" id="statTaxiCount">--</span>
+    <!-- Chat dialog - bottom right -->
+    <div id="chatDialog" class="panel collapsed">
+        <div id="chatHeader" onclick="toggleChat()">
+            <h3>Ask about live data</h3>
+            <span class="chat-toggle">&#9650;</span>
         </div>
-        <hr class="stat-divider">
-        <div class="stat-row">
-            <span class="stat-label">Active Cameras</span>
-            <span class="stat-value" id="statCameraCount">--</span>
+        <div id="chatMessages">
+            <div class="chat-msg system">Ask questions about Singapore traffic, taxis, and carparks in natural language.</div>
         </div>
-        <div class="stat-row">
-            <span class="stat-label">Carparks Tracked</span>
-            <span class="stat-value" id="statCarparkCount">--</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Avg Carpark Occupancy</span>
-            <span class="stat-value" id="statAvgOccupancy">--</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Taxi Density</span>
-            <span class="stat-value" id="statDensity">--</span>
-        </div>
-        <hr class="stat-divider">
-        <div class="stat-row">
-            <span class="stat-label">Last Updated</span>
-            <span class="stat-value" id="statLastUpdated">--</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Data Source</span>
-            <span class="stat-value">data.gov.sg</span>
+        <div id="chatInputWrap">
+            <input type="text" id="chatInput" placeholder="e.g. Which carparks near Sentosa are free?" autocomplete="off">
+            <button id="chatSend" onclick="sendChat()">Send</button>
         </div>
     </div>
 
@@ -158,23 +174,19 @@
             ),
         });
 
-        viewer.camera.setView({
-            destination: Cesium.Rectangle.fromDegrees(103.58, 1.15, 104.10, 1.48),
-        });
+        viewer.camera.setView({ destination: Cesium.Rectangle.fromDegrees(103.58, 1.15, 104.10, 1.48) });
 
         async function setupTerrain() {
             try { viewer.scene.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1); }
             catch (e) { console.warn('Terrain unavailable:', e); }
         }
         setupTerrain();
-
         async function addBuildings() {
             try { viewer.scene.primitives.add(await Cesium.Cesium3DTileset.fromIonAssetId(96188)); }
             catch (e) { console.warn('3D buildings unavailable:', e); }
         }
         addBuildings();
 
-        // Data sources
         const cameraDS = new Cesium.CustomDataSource('cameras');
         const taxiDS = new Cesium.CustomDataSource('taxis');
         const carparkDS = new Cesium.CustomDataSource('carparks');
@@ -184,7 +196,6 @@
 
         // Popup
         const popup = document.getElementById('infoPopup');
-
         function showPopup(title, titleColor, content, barHtml, screenPos) {
             document.getElementById('popupTitle').textContent = title;
             document.getElementById('popupTitle').style.color = titleColor;
@@ -195,7 +206,6 @@
             popup.style.left = Math.min(screenPos.x + 15, window.innerWidth - 400) + 'px';
             popup.style.top = Math.min(screenPos.y - 50, window.innerHeight - 300) + 'px';
         }
-
         function showCameraPopup(cam, screenPos) {
             document.getElementById('popupTitle').textContent = `Camera ${cam.camera_id}`;
             document.getElementById('popupTitle').style.color = '#ff5050';
@@ -206,14 +216,10 @@
             popup.style.left = Math.min(screenPos.x + 15, window.innerWidth - 400) + 'px';
             popup.style.top = Math.min(screenPos.y - 50, window.innerHeight - 300) + 'px';
         }
-
         function closePopup() { popup.style.display = 'none'; }
 
-        // Occupancy color: green (empty) -> yellow -> red (full)
         function occupancyColor(occ) {
-            const r = Math.min(1, occ * 2);
-            const g = Math.min(1, (1 - occ) * 2);
-            return new Cesium.Color(r, g, 0.1, 0.85);
+            return new Cesium.Color(Math.min(1, occ * 2), Math.min(1, (1 - occ) * 2), 0.1, 0.85);
         }
 
         // Click handler
@@ -221,138 +227,157 @@
         handler.setInputAction(function (click) {
             const picked = viewer.scene.pick(click.position);
             if (!Cesium.defined(picked) || !picked.id) { closePopup(); return; }
-
-            if (picked.id._cameraData) {
-                showCameraPopup(picked.id._cameraData, click.position);
-            } else if (picked.id._carparkData) {
+            if (picked.id._cameraData) { showCameraPopup(picked.id._cameraData, click.position); }
+            else if (picked.id._carparkData) {
                 const cp = picked.id._carparkData;
                 const pct = Math.round(cp.occupancy * 100);
                 const color = pct > 80 ? '#ff5050' : pct > 50 ? '#ffaa00' : '#50c878';
-                showPopup(
-                    `${cp.address}`, color,
-                    `Carpark: ${cp.carpark_number}<br>` +
-                    `Type: ${cp.car_park_type}<br>` +
-                    `Available: <b>${cp.available_lots}</b> / ${cp.total_lots} lots<br>` +
-                    `Free Parking: ${cp.free_parking}<br>` +
-                    `Night Parking: ${cp.night_parking}<br>` +
-                    `Updated: ${cp.updated_at}`,
-                    `<div class="occupancy-bar"><div class="occupancy-fill" style="width:${pct}%;background:${color}"></div></div>` +
-                    `<div style="font-size:11px;color:${color};margin-top:4px;text-align:right">${pct}% occupied</div>`,
-                    click.position
-                );
-            } else {
-                closePopup();
-            }
+                showPopup(cp.address, color,
+                    `Carpark: ${cp.carpark_number}<br>Type: ${cp.car_park_type}<br>Available: <b>${cp.available_lots}</b> / ${cp.total_lots} lots<br>Free Parking: ${cp.free_parking}<br>Night Parking: ${cp.night_parking}<br>Updated: ${cp.updated_at}`,
+                    `<div class="occupancy-bar"><div class="occupancy-fill" style="width:${pct}%;background:${color}"></div></div><div style="font-size:11px;color:${color};margin-top:4px;text-align:right">${pct}% occupied</div>`,
+                    click.position);
+            } else { closePopup(); }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-        // Load traffic cameras
+        // Data loaders
         async function loadCameras() {
             try {
-                const resp = await fetch('/api/traffic-cameras');
-                const data = await resp.json();
+                const data = await (await fetch('/api/traffic-cameras')).json();
                 cameraDS.entities.removeAll();
                 data.cameras.forEach(cam => {
-                    const entity = cameraDS.entities.add({
+                    const e = cameraDS.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(cam.longitude, cam.latitude, 50),
-                        point: {
-                            pixelSize: 10, color: Cesium.Color.RED,
-                            outlineColor: Cesium.Color.WHITE, outlineWidth: 1,
-                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                        },
-                        label: {
-                            text: cam.camera_id, font: '10px sans-serif',
-                            fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
-                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                            pixelOffset: new Cesium.Cartesian2(0, -14),
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                            scaleByDistance: new Cesium.NearFarScalar(1000, 1.0, 50000, 0.3),
-                        },
+                        point: { pixelSize: 10, color: Cesium.Color.RED, outlineColor: Cesium.Color.WHITE, outlineWidth: 1, heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+                        label: { text: cam.camera_id, font: '10px sans-serif', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -14), disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1000, 1.0, 50000, 0.3) },
                     });
-                    entity._cameraData = cam;
+                    e._cameraData = cam;
                 });
                 document.getElementById('cameraCount').textContent = data.count;
                 return data.count;
             } catch (e) { console.error('Failed to load cameras:', e); return 0; }
         }
-
-        // Load taxi locations
         async function loadTaxis() {
             try {
-                const resp = await fetch('/api/taxi-locations');
-                const data = await resp.json();
+                const data = await (await fetch('/api/taxi-locations')).json();
                 taxiDS.entities.removeAll();
-                data.taxis.forEach(taxi => {
+                data.taxis.forEach(t => {
                     taxiDS.entities.add({
-                        position: Cesium.Cartesian3.fromDegrees(taxi.longitude, taxi.latitude, 5),
-                        point: {
-                            pixelSize: 8, color: Cesium.Color.fromCssColorString('#4a90ff'),
-                            outlineColor: Cesium.Color.fromCssColorString('#1a5acc'), outlineWidth: 1,
-                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.4),
-                        },
+                        position: Cesium.Cartesian3.fromDegrees(t.longitude, t.latitude, 5),
+                        point: { pixelSize: 8, color: Cesium.Color.fromCssColorString('#4a90ff'), outlineColor: Cesium.Color.fromCssColorString('#1a5acc'), outlineWidth: 1, heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.4) },
                     });
                 });
                 document.getElementById('taxiCount').textContent = data.count;
                 return data.count;
             } catch (e) { console.error('Failed to load taxis:', e); return 0; }
         }
-
-        // Load carpark availability
         async function loadCarparks() {
             try {
-                const resp = await fetch('/api/carparks');
-                const data = await resp.json();
+                const data = await (await fetch('/api/carparks')).json();
                 carparkDS.entities.removeAll();
                 data.carparks.forEach(cp => {
-                    const color = occupancyColor(cp.occupancy);
-                    const height = 20 + cp.occupancy * 80; // 20m (empty) to 100m (full)
-                    const entity = carparkDS.entities.add({
+                    const e = carparkDS.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(cp.longitude, cp.latitude),
-                        cylinder: {
-                            length: height,
-                            topRadius: 25,
-                            bottomRadius: 25,
-                            material: color,
-                            outline: false,
-                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-                        },
+                        cylinder: { length: 20 + cp.occupancy * 80, topRadius: 25, bottomRadius: 25, material: occupancyColor(cp.occupancy), outline: false, heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND },
                     });
-                    entity._carparkData = cp;
+                    e._carparkData = cp;
                 });
                 document.getElementById('carparkCount').textContent = data.count;
                 return data;
             } catch (e) { console.error('Failed to load carparks:', e); return { count: 0, carparks: [] }; }
         }
 
-        // Toggle visibility
+        // Toggles
         document.getElementById('toggleCameras').addEventListener('change', function () { cameraDS.show = this.checked; });
         document.getElementById('toggleTaxis').addEventListener('change', function () { taxiDS.show = this.checked; });
         document.getElementById('toggleCarparks').addEventListener('change', function () { carparkDS.show = this.checked; });
 
-        // Update stats
+        // Stats
         function updateStats(camCount, taxiCount, carparkData) {
             document.getElementById('statTaxiCount').textContent = taxiCount.toLocaleString();
             document.getElementById('statCameraCount').textContent = camCount;
             document.getElementById('statCarparkCount').textContent = carparkData.count;
             document.getElementById('statDensity').textContent = `${(taxiCount / 730).toFixed(1)}/km\u00B2`;
-
             if (carparkData.carparks && carparkData.carparks.length > 0) {
-                const avgOcc = carparkData.carparks.reduce((s, c) => s + c.occupancy, 0) / carparkData.carparks.length;
-                document.getElementById('statAvgOccupancy').textContent = `${Math.round(avgOcc * 100)}%`;
+                const avg = carparkData.carparks.reduce((s, c) => s + c.occupancy, 0) / carparkData.carparks.length;
+                document.getElementById('statAvgOccupancy').textContent = `${Math.round(avg * 100)}%`;
             }
             document.getElementById('statLastUpdated').textContent = new Date().toLocaleTimeString('en-SG', { hour12: false });
         }
+
+        // Chat
+        function toggleChat() {
+            const dialog = document.getElementById('chatDialog');
+            dialog.classList.toggle('collapsed');
+            dialog.classList.toggle('expanded');
+            if (dialog.classList.contains('expanded')) {
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const messagesEl = document.getElementById('chatMessages');
+            const sendBtn = document.getElementById('chatSend');
+
+            // Add user message
+            const userDiv = document.createElement('div');
+            userDiv.className = 'chat-msg user';
+            userDiv.textContent = msg;
+            messagesEl.appendChild(userDiv);
+            input.value = '';
+            sendBtn.disabled = true;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            // Loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chat-msg system';
+            loadingDiv.textContent = 'Analyzing live data...';
+            messagesEl.appendChild(loadingDiv);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg }),
+                });
+                messagesEl.removeChild(loadingDiv);
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Request failed');
+                }
+
+                const data = await resp.json();
+                const botDiv = document.createElement('div');
+                botDiv.className = 'chat-msg assistant';
+                botDiv.textContent = data.answer;
+                messagesEl.appendChild(botDiv);
+            } catch (e) {
+                messagesEl.removeChild(loadingDiv);
+                const errDiv = document.createElement('div');
+                errDiv.className = 'chat-msg system';
+                errDiv.textContent = 'Error: ' + e.message;
+                messagesEl.appendChild(errDiv);
+            }
+
+            sendBtn.disabled = false;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Enter key to send
+        document.getElementById('chatInput').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+        });
 
         // Init
         async function init() {
             const statusEl = document.getElementById('status');
             statusEl.textContent = 'Loading...';
-            const [camCount, taxiCount, carparkData] = await Promise.all([
-                loadCameras(), loadTaxis(), loadCarparks()
-            ]);
+            const [camCount, taxiCount, carparkData] = await Promise.all([loadCameras(), loadTaxis(), loadCarparks()]);
             statusEl.textContent = `${camCount} cameras, ${taxiCount} taxis, ${carparkData.count} carparks`;
             updateStats(camCount, taxiCount, carparkData);
 
@@ -362,7 +387,6 @@
                 updateStats(c, t, cp);
             }, 30000);
         }
-
         init();
     </script>
 </body>

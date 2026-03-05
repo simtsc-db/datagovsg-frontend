@@ -13,10 +13,13 @@ from pathlib import Path
 import csv
 import io
 
+import json as json_lib
+
 import requests as http_requests
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -278,6 +281,248 @@ def get_carparks():
         return {"carparks": carparks, "count": len(carparks)}
     except Exception as e:
         logger.error(f"Error fetching carparks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+# Well-known Singapore landmarks -> search keywords for carpark matching
+_LANDMARK_KEYWORDS = {
+    "sentosa": ["sentosa", "harbourfront", "telok blangah"],
+    "raffles place": ["raffles", "cecil", "robinson", "shenton"],
+    "orchard": ["orchard", "somerset", "scotts"],
+    "marina bay": ["marina", "bayfront", "shenton"],
+    "changi": ["changi", "airport"],
+    "jurong": ["jurong"],
+    "tampines": ["tampines"],
+    "woodlands": ["woodlands"],
+    "ang mo kio": ["ang mo kio"],
+    "toa payoh": ["toa payoh"],
+    "bedok": ["bedok"],
+    "clementi": ["clementi"],
+    "bishan": ["bishan"],
+    "bukit timah": ["bukit timah"],
+    "chinatown": ["chinatown", "kreta ayer", "outram"],
+    "little india": ["little india", "serangoon", "farrer park"],
+    "bugis": ["bugis", "albert", "victoria"],
+    "hougang": ["hougang"],
+    "punggol": ["punggol"],
+    "sengkang": ["sengkang"],
+    "yishun": ["yishun"],
+    "pasir ris": ["pasir ris"],
+    "bukit merah": ["bukit merah"],
+    "queenstown": ["queenstown"],
+    "dover": ["dover"],
+    "novena": ["novena"],
+    "newton": ["newton"],
+    "kallang": ["kallang"],
+    "geylang": ["geylang"],
+    "eunos": ["eunos"],
+    "simei": ["simei"],
+    "bukit batok": ["bukit batok"],
+    "bukit panjang": ["bukit panjang"],
+    "choa chu kang": ["choa chu kang"],
+    "serangoon": ["serangoon"],
+    "potong pasir": ["potong pasir"],
+    "macpherson": ["macpherson"],
+}
+
+
+def _search_carparks(query: str) -> str:
+    """Search carparks by location keywords from the query."""
+    query_lower = query.lower()
+
+    # Find matching location keywords
+    search_terms = []
+    for landmark, keywords in _LANDMARK_KEYWORDS.items():
+        if landmark in query_lower:
+            search_terms.extend(keywords)
+            break
+
+    # If no landmark matched, extract nouns/words as search terms
+    if not search_terms:
+        stop_words = {"which", "what", "where", "are", "is", "the", "near", "in", "at", "how", "many",
+                      "free", "available", "full", "empty", "carpark", "carparks", "car", "park", "parking",
+                      "lot", "lots", "can", "i", "find", "show", "me", "right", "now", "current", "currently",
+                      "there", "any", "a", "an", "to", "of", "and", "from", "around", "close"}
+        words = [w.strip("?.,!") for w in query_lower.split() if w.strip("?.,!") not in stop_words and len(w) > 2]
+        search_terms = words
+
+    if not search_terms:
+        return None
+
+    try:
+        cp_data = get_carparks()
+        matches = []
+        for cp in cp_data["carparks"]:
+            addr = cp["address"].lower()
+            if any(term in addr for term in search_terms):
+                matches.append(cp)
+
+        if not matches:
+            return f"No carparks found matching '{' '.join(search_terms)}'. Try a different area name."
+
+        # Sort by available lots (most free first)
+        matches.sort(key=lambda c: c["occupancy"])
+
+        lines = [f"Found {len(matches)} carpark(s) near {search_terms[0].title()}:\n"]
+        for cp in matches[:10]:
+            pct = round(cp["occupancy"] * 100)
+            status = "FULL" if pct >= 95 else "Nearly full" if pct >= 80 else "Available" if pct < 50 else "Moderate"
+            lines.append(f"  {cp['address']}: {cp['available_lots']}/{cp['total_lots']} lots free ({pct}% full) - {status}")
+
+        if len(matches) > 10:
+            lines.append(f"  ... and {len(matches) - 10} more")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error searching carparks: {e}"
+
+
+def _answer_query(query: str) -> str:
+    """Answer a natural language question using live data."""
+    q = query.lower()
+
+    # Taxi queries
+    if "taxi" in q:
+        try:
+            data = get_taxi_locations()
+            count = data["count"]
+            if "how many" in q or "count" in q or "number" in q:
+                return f"There are currently {count:,} taxis available across Singapore. Taxi density is approximately {count/730:.1f} per km\u00B2."
+            elif any(area in q for area in _LANDMARK_KEYWORDS):
+                return f"There are {count:,} taxis currently available island-wide. The data provides total taxi count ({count:,}) but not per-area breakdown. The taxis are visible on the map as blue dots - zoom into your area of interest."
+            else:
+                return f"Currently {count:,} taxis are available across Singapore (density: {count/730:.1f}/km\u00B2). The real-time positions are shown as blue markers on the map."
+        except Exception as e:
+            return f"Error fetching taxi data: {e}"
+
+    # Camera queries
+    if "camera" in q:
+        try:
+            data = get_traffic_cameras()
+            return f"There are {data['count']} active LTA traffic cameras across Singapore, shown as red dots on the map. Click any camera marker to view its live image."
+        except Exception as e:
+            return f"Error fetching camera data: {e}"
+
+    # Carpark queries
+    if any(w in q for w in ["carpark", "car park", "parking", "park", "free", "full", "empty", "lot"]):
+        # Try location search first
+        result = _search_carparks(query)
+        if result:
+            return result
+
+        # General carpark stats
+        try:
+            data = get_carparks()
+            total_lots = sum(c["total_lots"] for c in data["carparks"])
+            total_avail = sum(c["available_lots"] for c in data["carparks"])
+            avg_occ = round((total_lots - total_avail) / total_lots * 100) if total_lots else 0
+            full = sum(1 for c in data["carparks"] if c["occupancy"] >= 0.95)
+            empty = sum(1 for c in data["carparks"] if c["occupancy"] <= 0.2)
+            return (
+                f"Tracking {data['count']:,} HDB carparks with {total_lots:,} total lots ({total_avail:,} available). "
+                f"Average occupancy: {avg_occ}%. "
+                f"{full} carparks are full (>95%), {empty} are nearly empty (<20%). "
+                f"Carparks are shown as colored cylinders on the map (green=empty, red=full)."
+            )
+        except Exception as e:
+            return f"Error fetching carpark data: {e}"
+
+    # Location-based queries (try carpark search as default)
+    for landmark in _LANDMARK_KEYWORDS:
+        if landmark in q:
+            result = _search_carparks(query)
+            if result:
+                return result
+
+    # General/overview queries
+    if any(w in q for w in ["overview", "summary", "status", "dashboard", "everything", "all"]):
+        parts = []
+        try:
+            parts.append(f"Taxis: {get_taxi_locations()['count']:,} available")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Cameras: {get_traffic_cameras()['count']} active")
+        except Exception:
+            pass
+        try:
+            cp = get_carparks()
+            avg = round(sum(c["occupancy"] for c in cp["carparks"]) / len(cp["carparks"]) * 100) if cp["carparks"] else 0
+            parts.append(f"Carparks: {cp['count']:,} tracked, {avg}% avg occupancy")
+        except Exception:
+            pass
+        return "Current Singapore overview:\n" + "\n".join(f"  {p}" for p in parts)
+
+    return "I can help with questions about Singapore's live data: taxi availability, traffic cameras, and HDB carpark occupancy. Try asking things like 'How many taxis are available?', 'Which carparks near Orchard are free?', or 'Show me parking near Tampines'."
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    """Answer natural language questions about live Singapore data."""
+    try:
+        db_host = os.environ.get("DATABRICKS_HOST", "")
+        if db_host and not db_host.startswith("http"):
+            db_host = f"https://{db_host}"
+        db_token = os.environ.get("DATABRICKS_TOKEN", "")
+
+        # Try Databricks Foundation Model API first
+        if db_host and db_token:
+            try:
+                # Build compact context (just stats + matched carparks for efficiency)
+                taxi_count = get_taxi_locations()["count"]
+                cam_count = get_traffic_cameras()["count"]
+                cp_data = get_carparks()
+                total_avail = sum(c["available_lots"] for c in cp_data["carparks"])
+                avg_occ = round(sum(c["occupancy"] for c in cp_data["carparks"]) / len(cp_data["carparks"]) * 100)
+
+                # Find relevant carparks based on query keywords
+                q_lower = req.message.lower()
+                relevant_cps = []
+                for landmark, kws in _LANDMARK_KEYWORDS.items():
+                    if landmark in q_lower:
+                        for cp in cp_data["carparks"]:
+                            if any(kw in cp["address"].lower() for kw in kws):
+                                relevant_cps.append(cp)
+                        break
+
+                context = (
+                    f"Live data: {taxi_count:,} taxis, {cam_count} cameras, {cp_data['count']:,} carparks "
+                    f"({total_avail:,} lots available, {avg_occ}% avg occupancy)."
+                )
+                if relevant_cps:
+                    context += "\nRelevant carparks:\n"
+                    for c in sorted(relevant_cps, key=lambda x: x["occupancy"])[:15]:
+                        context += f"  {c['address']}: {c['available_lots']}/{c['total_lots']} free ({round(c['occupancy']*100)}% full)\n"
+
+                messages = [
+                    {"role": "system", "content": (
+                        "You are the AI assistant for SG PubSec Palantir Clone, a Singapore real-time monitoring dashboard. "
+                        "Answer concisely (2-4 sentences). Use the live data provided.\n\n" + context
+                    )},
+                    {"role": "user", "content": req.message},
+                ]
+
+                resp = http_requests.post(
+                    f"{db_host.rstrip('/')}/serving-endpoints/databricks-meta-llama-3-3-70b-instruct/invocations",
+                    headers={"Authorization": f"Bearer {db_token}"},
+                    json={"messages": messages, "max_tokens": 300, "temperature": 0.3},
+                    timeout=25,
+                )
+                resp.raise_for_status()
+                answer = resp.json()["choices"][0]["message"]["content"]
+                return {"answer": answer}
+            except Exception as llm_err:
+                logger.warning(f"LLM unavailable ({llm_err}), falling back to local search")
+
+        # Fallback: local data search
+        answer = _answer_query(req.message)
+        return {"answer": answer}
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
