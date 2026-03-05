@@ -1,0 +1,12 @@
+command:
+  - uvicorn
+  - main:app
+  - --host
+  - 0.0.0.0
+  - --port
+  - "8000"
+env:
+  - name: CESIUM_API_KEY
+    valueFrom: secret/simtsc/cesium-api-key
+  - name: DATAGOV_API_KEY
+    valueFrom: secret/simtsc/datagov-api-key
