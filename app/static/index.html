@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Singapore Building Management</title>
+    <title>SG PubSec Palantir Clone</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -15,14 +15,14 @@
         #controls {
             position: absolute; top: 12px; left: 12px; z-index: 10;
             background: rgba(20, 20, 30, 0.9); border-radius: 10px;
-            padding: 16px; color: #fff; min-width: 220px;
+            padding: 16px; color: #fff; min-width: 240px;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
         }
-        #controls h2 { font-size: 14px; margin-bottom: 12px; color: #7ecfff; letter-spacing: 0.5px; }
-        .toggle-group { margin-bottom: 8px; }
+        #controls h2 { font-size: 13px; margin-bottom: 12px; color: #7ecfff; letter-spacing: 0.5px; }
+        .toggle-group { margin-bottom: 6px; }
         .toggle-group label {
             display: flex; align-items: center; gap: 8px;
-            cursor: pointer; font-size: 13px; padding: 4px 0;
+            cursor: pointer; font-size: 13px; padding: 3px 0;
         }
         .toggle-group input[type="checkbox"] { accent-color: #7ecfff; }
         .badge {
@@ -31,45 +31,51 @@
         }
         .badge-red { background: rgba(255,80,80,0.3); color: #ff5050; }
         .badge-blue { background: rgba(80,150,255,0.3); color: #5096ff; }
+        .badge-green { background: rgba(80,200,120,0.3); color: #50c878; }
+        .section-divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+        .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 4px; }
         #status { font-size: 11px; color: #888; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
 
-        /* Camera popup */
-        #cameraPopup {
+        /* Popup */
+        #infoPopup {
             display: none; position: absolute; z-index: 20;
             background: rgba(20, 20, 30, 0.95); border-radius: 10px;
-            padding: 12px; color: #fff; max-width: 360px;
+            padding: 12px; color: #fff; max-width: 380px;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
-        #cameraPopup h3 { font-size: 13px; color: #ff5050; margin-bottom: 8px; }
-        #cameraPopup img { width: 100%; border-radius: 6px; }
-        #cameraPopup .meta { font-size: 11px; color: #aaa; margin-top: 6px; }
-        #cameraPopup .close-btn {
+        #infoPopup h3 { font-size: 13px; margin-bottom: 8px; }
+        #infoPopup img { width: 100%; border-radius: 6px; }
+        #infoPopup .meta { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.5; }
+        #infoPopup .close-btn {
             position: absolute; top: 8px; right: 10px;
             cursor: pointer; color: #888; font-size: 16px;
         }
-        #cameraPopup .close-btn:hover { color: #fff; }
+        #infoPopup .close-btn:hover { color: #fff; }
+        .occupancy-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); margin-top: 6px; overflow: hidden; }
+        .occupancy-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 
         /* Stats overlay */
         #statsOverlay {
             position: absolute; bottom: 40px; right: 12px; z-index: 10;
             background: rgba(20, 20, 30, 0.9); border-radius: 10px;
-            padding: 14px 18px; color: #fff; min-width: 200px;
+            padding: 14px 18px; color: #fff; min-width: 210px;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
         }
         #statsOverlay h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ecfff; margin-bottom: 10px; }
-        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
         .stat-row .stat-label { color: #aaa; }
         .stat-row .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
         .stat-row .stat-value.highlight { color: #7ecfff; font-size: 18px; }
-        .stat-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 6px 0; }
+        .stat-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 5px 0; }
     </style>
 </head>
 <body>
     <div id="cesiumContainer"></div>
 
     <div id="controls">
-        <h2>SG BUILDING MGMT</h2>
+        <h2>SG PUBSEC PALANTIR CLONE</h2>
+        <div class="section-label">LTA Traffic</div>
         <div class="toggle-group">
             <label>
                 <input type="checkbox" id="toggleCameras" checked>
@@ -84,14 +90,24 @@
                 <span class="badge badge-blue" id="taxiCount">0</span>
             </label>
         </div>
+        <hr class="section-divider">
+        <div class="section-label">HDB Housing</div>
+        <div class="toggle-group">
+            <label>
+                <input type="checkbox" id="toggleCarparks" checked>
+                Carpark Occupancy
+                <span class="badge badge-green" id="carparkCount">0</span>
+            </label>
+        </div>
         <div id="status">Loading data...</div>
     </div>
 
-    <div id="cameraPopup">
-        <span class="close-btn" onclick="closeCameraPopup()">&times;</span>
+    <div id="infoPopup">
+        <span class="close-btn" onclick="closePopup()">&times;</span>
         <h3 id="popupTitle"></h3>
-        <img id="popupImage" src="" alt="Traffic camera image">
+        <div id="popupImageWrap"></div>
         <div class="meta" id="popupMeta"></div>
+        <div id="popupBar"></div>
     </div>
 
     <div id="statsOverlay">
@@ -106,12 +122,16 @@
             <span class="stat-value" id="statCameraCount">--</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Taxi Density</span>
-            <span class="stat-value" id="statDensity">--</span>
+            <span class="stat-label">Carparks Tracked</span>
+            <span class="stat-value" id="statCarparkCount">--</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Coverage Area</span>
-            <span class="stat-value" id="statCoverage">~730 km&sup2;</span>
+            <span class="stat-label">Avg Carpark Occupancy</span>
+            <span class="stat-value" id="statAvgOccupancy">--</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Taxi Density</span>
+            <span class="stat-value" id="statDensity">--</span>
         </div>
         <hr class="stat-divider">
         <div class="stat-row">
@@ -125,90 +145,103 @@
     </div>
 
     <script>
-        // Cesium Ion access token from secrets (injected at build or via env)
         const CESIUM_TOKEN = window.__CESIUM_TOKEN__ || '';
-
-        // Initialize Cesium
         Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
 
         const viewer = new Cesium.Viewer('cesiumContainer', {
-            baseLayerPicker: false,
-            geocoder: false,
-            homeButton: false,
-            navigationHelpButton: false,
-            sceneModePicker: false,
-            timeline: false,
-            animation: false,
-            fullscreenButton: false,
-            selectionIndicator: false,
-            infoBox: false,
+            baseLayerPicker: false, geocoder: false, homeButton: false,
+            navigationHelpButton: false, sceneModePicker: false,
+            timeline: false, animation: false, fullscreenButton: false,
+            selectionIndicator: false, infoBox: false,
             baseLayer: Cesium.ImageryLayer.fromProviderAsync(
-                Cesium.ArcGisMapServerImageryProvider.fromBasemapType(
-                    Cesium.ArcGisBaseMapType.SATELLITE
-                )
+                Cesium.ArcGisMapServerImageryProvider.fromBasemapType(Cesium.ArcGisBaseMapType.SATELLITE)
             ),
         });
 
-        // Set camera to show all of Singapore immediately
-        // Singapore bounds: approx 103.6 to 104.1 lon, 1.15 to 1.48 lat
         viewer.camera.setView({
             destination: Cesium.Rectangle.fromDegrees(103.58, 1.15, 104.10, 1.48),
         });
 
-        // Add Cesium World Terrain if Ion token is available
         async function setupTerrain() {
-            try {
-                const terrain = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
-                viewer.scene.terrainProvider = terrain;
-            } catch (e) {
-                console.warn('Could not load Cesium World Terrain:', e);
-            }
+            try { viewer.scene.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1); }
+            catch (e) { console.warn('Terrain unavailable:', e); }
         }
         setupTerrain();
 
-        // Enable 3D buildings from Cesium Ion (OSM Buildings)
         async function addBuildings() {
-            try {
-                const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(96188);
-                viewer.scene.primitives.add(tileset);
-            } catch (e) {
-                console.warn('Could not load 3D buildings:', e);
-            }
+            try { viewer.scene.primitives.add(await Cesium.Cesium3DTileset.fromIonAssetId(96188)); }
+            catch (e) { console.warn('3D buildings unavailable:', e); }
         }
         addBuildings();
 
         // Data sources
-        const cameraDataSource = new Cesium.CustomDataSource('cameras');
-        const taxiDataSource = new Cesium.CustomDataSource('taxis');
-        viewer.dataSources.add(cameraDataSource);
-        viewer.dataSources.add(taxiDataSource);
+        const cameraDS = new Cesium.CustomDataSource('cameras');
+        const taxiDS = new Cesium.CustomDataSource('taxis');
+        const carparkDS = new Cesium.CustomDataSource('carparks');
+        viewer.dataSources.add(cameraDS);
+        viewer.dataSources.add(taxiDS);
+        viewer.dataSources.add(carparkDS);
 
-        // Camera popup
-        const popup = document.getElementById('cameraPopup');
+        // Popup
+        const popup = document.getElementById('infoPopup');
 
-        function showCameraPopup(camera, screenPos) {
-            document.getElementById('popupTitle').textContent = `Camera ${camera.camera_id}`;
-            document.getElementById('popupImage').src = camera.image_url;
-            document.getElementById('popupMeta').textContent =
-                `${camera.image_width}x${camera.image_height} | ${camera.captured_at || 'N/A'}`;
-
+        function showPopup(title, titleColor, content, barHtml, screenPos) {
+            document.getElementById('popupTitle').textContent = title;
+            document.getElementById('popupTitle').style.color = titleColor;
+            document.getElementById('popupMeta').innerHTML = content;
+            document.getElementById('popupBar').innerHTML = barHtml || '';
+            document.getElementById('popupImageWrap').innerHTML = '';
             popup.style.display = 'block';
-            popup.style.left = Math.min(screenPos.x + 15, window.innerWidth - 380) + 'px';
+            popup.style.left = Math.min(screenPos.x + 15, window.innerWidth - 400) + 'px';
             popup.style.top = Math.min(screenPos.y - 50, window.innerHeight - 300) + 'px';
         }
 
-        function closeCameraPopup() {
-            popup.style.display = 'none';
+        function showCameraPopup(cam, screenPos) {
+            document.getElementById('popupTitle').textContent = `Camera ${cam.camera_id}`;
+            document.getElementById('popupTitle').style.color = '#ff5050';
+            document.getElementById('popupImageWrap').innerHTML = `<img src="${cam.image_url}" style="width:100%;border-radius:6px;">`;
+            document.getElementById('popupMeta').textContent = `${cam.image_width}x${cam.image_height} | ${cam.captured_at || 'N/A'}`;
+            document.getElementById('popupBar').innerHTML = '';
+            popup.style.display = 'block';
+            popup.style.left = Math.min(screenPos.x + 15, window.innerWidth - 400) + 'px';
+            popup.style.top = Math.min(screenPos.y - 50, window.innerHeight - 300) + 'px';
+        }
+
+        function closePopup() { popup.style.display = 'none'; }
+
+        // Occupancy color: green (empty) -> yellow -> red (full)
+        function occupancyColor(occ) {
+            const r = Math.min(1, occ * 2);
+            const g = Math.min(1, (1 - occ) * 2);
+            return new Cesium.Color(r, g, 0.1, 0.85);
         }
 
         // Click handler
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         handler.setInputAction(function (click) {
             const picked = viewer.scene.pick(click.position);
-            if (Cesium.defined(picked) && picked.id && picked.id._cameraData) {
+            if (!Cesium.defined(picked) || !picked.id) { closePopup(); return; }
+
+            if (picked.id._cameraData) {
                 showCameraPopup(picked.id._cameraData, click.position);
+            } else if (picked.id._carparkData) {
+                const cp = picked.id._carparkData;
+                const pct = Math.round(cp.occupancy * 100);
+                const color = pct > 80 ? '#ff5050' : pct > 50 ? '#ffaa00' : '#50c878';
+                showPopup(
+                    `${cp.address}`, color,
+                    `Carpark: ${cp.carpark_number}<br>` +
+                    `Type: ${cp.car_park_type}<br>` +
+                    `Available: <b>${cp.available_lots}</b> / ${cp.total_lots} lots<br>` +
+                    `Free Parking: ${cp.free_parking}<br>` +
+                    `Night Parking: ${cp.night_parking}<br>` +
+                    `Updated: ${cp.updated_at}`,
+                    `<div class="occupancy-bar"><div class="occupancy-fill" style="width:${pct}%;background:${color}"></div></div>` +
+                    `<div style="font-size:11px;color:${color};margin-top:4px;text-align:right">${pct}% occupied</div>`,
+                    click.position
+                );
             } else {
-                closeCameraPopup();
+                closePopup();
             }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -217,25 +250,19 @@
             try {
                 const resp = await fetch('/api/traffic-cameras');
                 const data = await resp.json();
-                cameraDataSource.entities.removeAll();
-
+                cameraDS.entities.removeAll();
                 data.cameras.forEach(cam => {
-                    const entity = cameraDataSource.entities.add({
+                    const entity = cameraDS.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(cam.longitude, cam.latitude, 50),
                         point: {
-                            pixelSize: 10,
-                            color: Cesium.Color.RED,
-                            outlineColor: Cesium.Color.WHITE,
-                            outlineWidth: 1,
+                            pixelSize: 10, color: Cesium.Color.RED,
+                            outlineColor: Cesium.Color.WHITE, outlineWidth: 1,
                             heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             disableDepthTestDistance: Number.POSITIVE_INFINITY,
                         },
                         label: {
-                            text: cam.camera_id,
-                            font: '10px sans-serif',
-                            fillColor: Cesium.Color.WHITE,
-                            outlineColor: Cesium.Color.BLACK,
-                            outlineWidth: 2,
+                            text: cam.camera_id, font: '10px sans-serif',
+                            fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                             pixelOffset: new Cesium.Cartesian2(0, -14),
@@ -245,13 +272,9 @@
                     });
                     entity._cameraData = cam;
                 });
-
                 document.getElementById('cameraCount').textContent = data.count;
                 return data.count;
-            } catch (e) {
-                console.error('Failed to load cameras:', e);
-                return 0;
-            }
+            } catch (e) { console.error('Failed to load cameras:', e); return 0; }
         }
 
         // Load taxi locations
@@ -259,66 +282,84 @@
             try {
                 const resp = await fetch('/api/taxi-locations');
                 const data = await resp.json();
-                taxiDataSource.entities.removeAll();
-
-                const taxis = data.taxis;
-                for (let i = 0; i < taxis.length; i++) {
-                    const taxi = taxis[i];
-                    taxiDataSource.entities.add({
+                taxiDS.entities.removeAll();
+                data.taxis.forEach(taxi => {
+                    taxiDS.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(taxi.longitude, taxi.latitude, 5),
                         point: {
-                            pixelSize: 8,
-                            color: Cesium.Color.fromCssColorString('#4a90ff'),
-                            outlineColor: Cesium.Color.fromCssColorString('#1a5acc'),
-                            outlineWidth: 1,
+                            pixelSize: 8, color: Cesium.Color.fromCssColorString('#4a90ff'),
+                            outlineColor: Cesium.Color.fromCssColorString('#1a5acc'), outlineWidth: 1,
                             heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             disableDepthTestDistance: Number.POSITIVE_INFINITY,
                             scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.4),
                         },
                     });
-                }
-
+                });
                 document.getElementById('taxiCount').textContent = data.count;
                 return data.count;
-            } catch (e) {
-                console.error('Failed to load taxis:', e);
-                return 0;
-            }
+            } catch (e) { console.error('Failed to load taxis:', e); return 0; }
+        }
+
+        // Load carpark availability
+        async function loadCarparks() {
+            try {
+                const resp = await fetch('/api/carparks');
+                const data = await resp.json();
+                carparkDS.entities.removeAll();
+                data.carparks.forEach(cp => {
+                    const color = occupancyColor(cp.occupancy);
+                    const height = 20 + cp.occupancy * 80; // 20m (empty) to 100m (full)
+                    const entity = carparkDS.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(cp.longitude, cp.latitude),
+                        cylinder: {
+                            length: height,
+                            topRadius: 25,
+                            bottomRadius: 25,
+                            material: color,
+                            outline: false,
+                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+                        },
+                    });
+                    entity._carparkData = cp;
+                });
+                document.getElementById('carparkCount').textContent = data.count;
+                return data;
+            } catch (e) { console.error('Failed to load carparks:', e); return { count: 0, carparks: [] }; }
         }
 
         // Toggle visibility
-        document.getElementById('toggleCameras').addEventListener('change', function () {
-            cameraDataSource.show = this.checked;
-        });
-        document.getElementById('toggleTaxis').addEventListener('change', function () {
-            taxiDataSource.show = this.checked;
-        });
+        document.getElementById('toggleCameras').addEventListener('change', function () { cameraDS.show = this.checked; });
+        document.getElementById('toggleTaxis').addEventListener('change', function () { taxiDS.show = this.checked; });
+        document.getElementById('toggleCarparks').addEventListener('change', function () { carparkDS.show = this.checked; });
 
-        // Update stats overlay
-        function updateStats(camCount, taxiCount) {
+        // Update stats
+        function updateStats(camCount, taxiCount, carparkData) {
             document.getElementById('statTaxiCount').textContent = taxiCount.toLocaleString();
             document.getElementById('statCameraCount').textContent = camCount;
-            const density = (taxiCount / 730).toFixed(1);
-            document.getElementById('statDensity').textContent = `${density}/km\u00B2`;
+            document.getElementById('statCarparkCount').textContent = carparkData.count;
+            document.getElementById('statDensity').textContent = `${(taxiCount / 730).toFixed(1)}/km\u00B2`;
+
+            if (carparkData.carparks && carparkData.carparks.length > 0) {
+                const avgOcc = carparkData.carparks.reduce((s, c) => s + c.occupancy, 0) / carparkData.carparks.length;
+                document.getElementById('statAvgOccupancy').textContent = `${Math.round(avgOcc * 100)}%`;
+            }
             document.getElementById('statLastUpdated').textContent = new Date().toLocaleTimeString('en-SG', { hour12: false });
         }
 
-        // Initial load
+        // Init
         async function init() {
             const statusEl = document.getElementById('status');
-            statusEl.textContent = 'Loading cameras...';
-            const camCount = await loadCameras();
-            statusEl.textContent = 'Loading taxis...';
-            const taxiCount = await loadTaxis();
-            statusEl.textContent = `Loaded ${camCount} cameras, ${taxiCount} taxis`;
-            updateStats(camCount, taxiCount);
+            statusEl.textContent = 'Loading...';
+            const [camCount, taxiCount, carparkData] = await Promise.all([
+                loadCameras(), loadTaxis(), loadCarparks()
+            ]);
+            statusEl.textContent = `${camCount} cameras, ${taxiCount} taxis, ${carparkData.count} carparks`;
+            updateStats(camCount, taxiCount, carparkData);
 
-            // Auto-refresh every 30 seconds
             setInterval(async () => {
-                const c = await loadCameras();
-                const t = await loadTaxis();
+                const [c, t, cp] = await Promise.all([loadCameras(), loadTaxis(), loadCarparks()]);
                 statusEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
-                updateStats(c, t);
+                updateStats(c, t, cp);
             }, 30000);
         }
 
